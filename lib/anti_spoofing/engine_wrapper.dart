@@ -7,17 +7,15 @@ import '../engine/engine.src.dart';
 import 'detection_result.dart';
 
 class EngineWrapper {
-  final AssetBundle assetBundle;
-
   final FaceDetector faceDetector = FaceDetector();
   final Live live = Live();
 
-  EngineWrapper({required this.assetBundle});
+  EngineWrapper();
 
   Future<bool> init() async {
-    final retFace = await faceDetector.loadModel(assetBundle);
+    final retFace = await faceDetector.loadModel();
     if (retFace == 0) {
-      final retLive = await live.loadModel(assetBundle);
+      final retLive = await live.loadModel();
       return retLive == 0;
     }
     return false;

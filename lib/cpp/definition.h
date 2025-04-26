@@ -25,6 +25,11 @@ struct FaceBox {
     float y2;
 };
 
+struct FaceBoxArray {
+    FaceBox* faces;
+    int length;
+};
+
 struct ModelConfig {
     float scale;
     float shift_x;

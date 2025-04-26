@@ -9,7 +9,6 @@
 #include "../include/ncnn/net.h"
 #include "../definition.h"
 
-
 class FaceDetector {
 public:
     FaceDetector();
@@ -18,9 +17,9 @@ public:
 
     void SetMinFaceSize(int size);
 
-    int LoadModel(AAssetManager* assetManager);
+    int LoadModel();
 
-    int Detect(cv::Mat& src, std::vector<FaceBox>& boxes);
+    int Detect(cv::Mat &src, std::vector <FaceBox> &boxes);
 
 private:
     ncnn::Net net_;
@@ -34,6 +33,4 @@ private:
     int min_face_size_;
 };
 
-
-
-#endif //LIVEBODYEXAMPLE_FACE_DETECTOR_H
+#endif // LIVEBODYEXAMPLE_FACE_DETECTOR_H

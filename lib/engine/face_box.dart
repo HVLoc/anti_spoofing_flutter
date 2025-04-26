@@ -1,35 +1,54 @@
-class FaceBox {
-  final int left;
-  final int top;
-  final int right;
-  final int bottom;
-  double confidence;
+import 'dart:ffi' as ffi;
 
-  FaceBox({
-    required this.left,
-    required this.top,
-    required this.right,
-    required this.bottom,
-    required this.confidence,
-  });
+base class FaceBox extends ffi.Struct {
+  @ffi.Int32()
+  external int left;
 
-  factory FaceBox.fromJson(Map<String, dynamic> json) {
-    return FaceBox(
-      left: json['left'],
-      top: json['top'],
-      right: json['right'],
-      bottom: json['bottom'],
-      confidence: json['confidence']?.toDouble() ?? 0.0,
-    );
-  }
+  @ffi.Int32()
+  external final int top;
 
-  Map<String, dynamic> toJson() {
-    return {
-      'left': left,
-      'top': top,
-      'right': right,
-      'bottom': bottom,
-      'confidence': confidence,
-    };
-  }
+  @ffi.Int32()
+  external final int right;
+
+  @ffi.Int32()
+  external final int bottom;
+
+  @ffi.Float()
+  external double confidence;
+
+  // FaceBox({
+  //   required this.left,
+  //   required this.top,
+  //   required this.right,
+  //   required this.bottom,
+  //   required this.confidence,
+  // });
+  //
+  // factory FaceBox.fromJson(Map<String, dynamic> json) {
+  //   return FaceBox(
+  //     left: json['left'],
+  //     top: json['top'],
+  //     right: json['right'],
+  //     bottom: json['bottom'],
+  //     confidence: json['confidence']?.toDouble() ?? 0.0,
+  //   );
+  // }
+  //
+  Map<String, dynamic> toJson() => {
+        'left': left,
+        'top': top,
+        'right': right,
+        'bottom': bottom,
+        'confidence': confidence,
+      };
+
+  @override
+  String toString() => 'FaceBox($left, $top, $right, $bottom, $confidence)';
+}
+
+base class FaceBoxArray extends ffi.Struct {
+  external ffi.Pointer<FaceBox> faces;
+
+  @ffi.Int32()
+  external int length;
 }

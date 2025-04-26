@@ -1,132 +1,70 @@
-//
-// Created by yuanhao on 20-6-9.
-//
-
-#include "jni_long_field.h"
 #include "definition.h"
 #include "detection/face_detector.h"
 #include "img_process.h"
-#include <android/asset_manager_jni.h>
-
-
-JniLongField face_detector_field("nativeHandler");
-
-FaceDetector* get_face_detector(JNIEnv* env, jobject instance) {
-    FaceDetector* const detector =
-            reinterpret_cast<FaceDetector*>(face_detector_field.get(env, instance));
-    return detector;
-}
-
-void set_face_detector(JNIEnv* env, jobject instance, FaceDetector* detector) {
-    face_detector_field.set(env, instance, reinterpret_cast<intptr_t>(detector));
-}
-
+#include <vector>
+#include <cstdint>
+#include <cstring>
+#include <opencv2/core/mat.hpp>
 
 extern "C" {
 
-JNIEXPORT jlong JNICALL
-FACE_DETECTOR_METHOD(allocate)(JNIEnv *env, jobject instance);
-
-
-JNIEXPORT void JNICALL
-FACE_DETECTOR_METHOD(deallocate)(JNIEnv *env, jobject instance);
-
-JNIEXPORT jint JNICALL
-FACE_DETECTOR_METHOD(nativeLoadModel)(JNIEnv *env, jobject instance, jobject assets_manager);
-
-
-JNIEXPORT jobject JNICALL
-FACE_DETECTOR_METHOD(nativeDetectBitmap)(JNIEnv *env, jobject instance, jobject bitmap);
-
-
-JNIEXPORT jobject JNICALL
-FACE_DETECTOR_METHOD(nativeDetectYuv)(JNIEnv *env, jobject instance, jbyteArray yuv,
-                                      jint preview_width, jint preview_height,jint orientation);
-
+// Khởi tạo detector, trả về con trỏ
+doubleptr_t fd_allocate() {
+    return reinterpret_cast<doubleptr_t>(new FaceDetector());
 }
 
+// Giải phóng detector
+void fd_deallocate(Object handle) {
+    if (handle != 0) {
+        delete reinterpret_cast<FaceDetector *>(handle);
+    }
+}
 
-jobject ConvertFaceBoxVector2List(JNIEnv *env, std::vector<FaceBox>& boxes) {
-    jclass list_clz = env->FindClass(JAVA_ARRAY_LIST_CLASSPATH);
+// Load model từ đường dẫn file
+int fd_load_model(Object handle, const char* param_path, const char* bin_path) {
+    FaceDetector *detector = reinterpret_cast<FaceDetector *>(handle);
+    return detector->LoadModel(param_path, bin_path);
+}
 
-    jmethodID init_method = env->GetMethodID(list_clz, "<init>", "()V");
-    jmethodID add_method = env->GetMethodID(list_clz, "add", "(Ljava/lang/Object;)Z");
+// Detect từ buffer YUV
+FaceBoxArray fd_detect_yuv(Object handle, const uint8_t* yuv, int width, int height, int orientation) {
+    FaceDetector* detector = reinterpret_cast<FaceDetector*>(handle);
 
-    jobject list = env->NewObject(list_clz, init_method);
-    env->DeleteLocalRef(list_clz);
+    // Chuyển đổi dữ liệu YUV sang BGR
+    cv::Mat bgr;
+    Yuv420sp2bgr(yuv, width, height, orientation, bgr);
 
-    jclass face_clz = env->FindClass(ANDROID_FACE_BOX_CLASSPATH);
+    // Phát hiện khuôn mặt
+    std::vector<FaceBox> boxes;
+    detector->Detect(bgr, boxes);
 
-    jmethodID face_init_method = env->GetMethodID(face_clz, "<init>", "(IIIIF)V");
-
-    for (auto& box : boxes) {
-        int left = static_cast<int>(box.x1);
-        int top = static_cast<int>(box.y1);
-        int right = static_cast<int>(box.x2);
-        int bottom = static_cast<int>(box.y2);
-
-
-        jobject face = env->NewObject(face_clz, face_init_method, left, top, right, bottom, 0.f);
-        env->CallBooleanMethod(list, add_method, face);
-
-        env->DeleteLocalRef(face);
+    // Cấp phát bộ nhớ cho FaceBoxArray
+    FaceBoxArray faceArray;
+    faceArray.length = boxes.size();
+    faceArray.faces = (FaceBox*)malloc(faceArray.length * sizeof(FaceBox));
+    if (faceArray.faces == nullptr) {
+        faceArray.length = 0;
+        return faceArray;
     }
 
-    env->DeleteLocalRef(face_clz);
-    return list;
+    // Sao chép các FaceBox vào mảng đã cấp phát
+    for (int i = 0; i < faceArray.length; ++i) {
+        faceArray.faces[i].x1 = boxes[i].x1;
+        faceArray.faces[i].y1 = boxes[i].y1;
+        faceArray.faces[i].x2 = boxes[i].x2;
+        faceArray.faces[i].y2 = boxes[i].y2;
+        faceArray.faces[i].confidence = 0.0f;  // Hoặc tính toán điểm của khuôn mặt nếu cần
+    }
+
+    return faceArray;
 }
 
-
-JNIEXPORT jlong JNICALL
-FACE_DETECTOR_METHOD(allocate)(JNIEnv *env, jobject instance) {
-    auto * const detector = new FaceDetector();
-    set_face_detector(env, instance, detector);
-    return reinterpret_cast<intptr_t> (detector);
+// Hàm giải phóng bộ nhớ cho FaceBoxArray
+void fd_release_faces(FaceBoxArray faceArray) {
+    if (faceArray.faces != nullptr) {
+        free(faceArray.faces);
+        faceArray.faces = nullptr;
+    }
 }
 
-JNIEXPORT void JNICALL
-FACE_DETECTOR_METHOD(deallocate)(JNIEnv *env, jobject instance) {
-    delete get_face_detector(env, instance);
-    set_face_detector(env, instance, nullptr);
-}
-
-
-
-JNIEXPORT jint JNICALL
-FACE_DETECTOR_METHOD(nativeLoadModel)(JNIEnv *env, jobject instance, jobject assets_manager) {
-    AAssetManager* mgr = AAssetManager_fromJava(env, assets_manager);
-    return get_face_detector(env, instance)->LoadModel(mgr);
-}
-
-JNIEXPORT jobject JNICALL
-FACE_DETECTOR_METHOD(nativeDetectBitmap)(JNIEnv *env, jobject instance, jobject bitmap) {
-    cv::Mat img;
-    int ret = ConvertBitmap2Mat(env, bitmap, img);
-    if(ret != 0)
-        return nullptr;
-
-    std::vector<FaceBox> boxes;
-    get_face_detector(env, instance)->Detect(img, boxes);
-
-    AndroidBitmap_unlockPixels(env, bitmap);
-
-    if(boxes.empty()) return nullptr;
-
-    return ConvertFaceBoxVector2List(env, boxes);
-}
-
-JNIEXPORT jobject JNICALL
-FACE_DETECTOR_METHOD(nativeDetectYuv)(JNIEnv *env, jobject instance, jbyteArray yuv,
-        jint preview_width, jint preview_height,jint orientation) {
-    jbyte *yuv_ = env->GetByteArrayElements(yuv, nullptr);
-
-    cv::Mat bgr;
-    Yuv420sp2bgr(reinterpret_cast<unsigned char *>(yuv_), preview_width, preview_height, orientation, bgr);
-
-    std::vector<FaceBox> boxes;
-    get_face_detector(env, instance)->Detect(bgr, boxes);
-
-    env->ReleaseByteArrayElements(yuv, yuv_, 0);
-
-    return ConvertFaceBoxVector2List(env, boxes);
-}
+} // extern "C"

@@ -4,7 +4,8 @@
 
 #include <ncnn/cpu.h>
 #include "face_detector.h"
-#include "../android_log.h"
+// #include "../android_log.h"
+
 
 static bool AreaComp(FaceBox& l, FaceBox& r) {
     return ((l.x2 - l.x1 + 1) * (l.y2 - l.y1 + 1)) > ((r.x2 - r.x1 + 1) * (r.y2 - r.y1 + 1));
@@ -25,17 +26,18 @@ void FaceDetector::SetMinFaceSize(int size) {
     min_face_size_ = size;
 }
 
-int FaceDetector::LoadModel(AAssetManager* assetManager) {
+int FaceDetector::LoadModel() {
     net_.opt = option_;
-    int ret = net_.load_param(assetManager, "detection/detection.param");
+    int ret = net_.load_param("detection/detection.param");
     if(ret != 0) {
-        LOG_ERR("FaceDetector load param failed. %d", ret);
+        //Todo: print log
+        // println("FaceDetector load param failed. %d", ret);
         return -1;
     }
 
-    ret = net_.load_model(assetManager, "detection/detection.bin");
+    ret = net_.load_model( "detection/detection.bin");
     if(ret != 0) {
-        LOG_ERR("FaceDetector load model failed. %d", ret);
+        // LOG_ERR("FaceDetector load model failed. %d", ret);
         return -2;
     }
     return 0;
